@@ -17,9 +17,13 @@ class Worker {
     this.queue.subscribe({
       next: async (queue) => {
         if (!this.queueDisplayId) {
-          await this.channel.bulkDelete(100);
-          let sent = await this.channel.send(await this.getQueue());
-          this.queueDisplayId = sent.id;
+          try {
+            await this.channel.bulkDelete(100);
+            let sent = await this.channel.send(await this.getQueue());
+            this.queueDisplayId = sent.id;
+          } catch {
+            console.log("some bug");
+          }
         } else {
           this.displayQueue();
         }
@@ -42,12 +46,15 @@ class Worker {
       .then((connection) => {
         this.connection = connection;
       })
-      .catch((err) => console.log(err));
+      .catch((err) => console.log("err"));
   }
   displayQueue = async () => {
-    this.channel.messages.fetch(this.queueDisplayId).then(async (msg) => {
-      msg.edit(await this.getQueue());
-    });
+    this.channel.messages
+      .fetch(this.queueDisplayId)
+      .then(async (msg) => {
+        msg.edit(await this.getQueue());
+      })
+      .catch((err) => console.log("err"));
   };
   getQueue = async () => {
     var output = " ";
@@ -89,14 +96,11 @@ class Worker {
   };
   pushToQueue = (playlist) => {
     var promise = parsePlaylist(playlist);
-    promise.catch((error) => {
-      return "Error";
-    });
-
-    return promise.then((result) => {
-      this.queue.next(result);
-      return `Pushed Playlist **${playlist}** Into Queue`;
-    });
+    return promise
+      .then((result) => {
+        this.queue.next(result);
+      })
+      .catch((err) => console.log(err));
   };
   playSong = () => {
     var song = this.queue.value[0];
@@ -122,6 +126,7 @@ class Worker {
   };
   clearQueue = () => {
     this.queue.next([]);
+    this.dispatcher.end();
   };
   search = async (playlist, key) => {
     var hold = await searchSong(key);
@@ -134,37 +139,56 @@ class Worker {
     var url = "https://www.youtube.com/watch?v=" + this.searchBuffer[1][pos].id;
     this.addToPlaylist(this.searchBuffer[0], url);
 
-    this.channel.messages.fetch(this.searchDisplayId).then(async (msg) => {
-      msg.delete({ timeout: 100 });
-    });
+    this.channel.messages
+      .fetch(this.searchDisplayId)
+      .then(async (msg) => {
+        msg.delete({ timeout: 100 });
+      })
+      .catch((err) => console.log(err));
   };
   addToPlaylist = async (playlist, search) => {
-    console.log('ran')
     try {
       var info = await getSongInfo(search);
-      console.log('INFO' + info)
     } catch (err) {
       const message = new Discord.MessageEmbed()
-      .setColor("#b300ff")
-      .setTitle("INVALID")
-      this.channel.send(message).then(async (msg) => {
-        msg.delete({ timeout: 2000 });
-      });
+        .setColor("#b300ff")
+        .setTitle("INVALID");
+      this.channel
+        .send(message)
+        .then(async (msg) => {
+          msg.delete({ timeout: 2000 });
+        })
+        .catch((err) => console.log(err));
     }
-    console.log('INFO' + info)
     dbHandle.insert_collection_into_documents(playlist, info);
     const message = new Discord.MessageEmbed()
-    .setColor("#b300ff")
-    .setTitle("ADDED")
-    this.channel.send(message).then(async (msg) => {
-      msg.delete({ timeout: 2000 });
-    });
+      .setColor("#b300ff")
+      .setTitle("ADDED");
+    this.channel
+      .send(message)
+      .then(async (msg) => {
+        msg.delete({ timeout: 2000 });
+      })
+      .catch((err) => console.log(err));
+
+    this.displayQueue();
   };
-
-
+  shuffle = () => {
+    var array = this.queue.value;
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    this.queue.next(array);
+  };
+  deletePlaylist(target) {
+    dbHandle.delete_collection(target);
+    this.displayQueue();
+  }
 }
 
 // OUTSIDE CLASS
+
 var getPlaylist = async (playlist) => {
   /* takes in (message) > discord client object + playlist name
         and returns the playlist document from the db  */
@@ -178,14 +202,15 @@ var getPlaylist = async (playlist) => {
 };
 var parsePlaylist = (playlist) => {
   var info = getPlaylist(playlist);
-  return info.then((info) => {
-    result = [];
-    for (var i in info) {
-      result.push(info[i]);
-    }
-    return result;
-  });
-  info.catch((error) => {});
+  return info
+    .then((info) => {
+      result = [];
+      for (var i in info) {
+        result.push(info[i]);
+      }
+      return result;
+    })
+    .catch((err) => console.log(err));
 };
 
 var getAllPlaylists = async () => {
@@ -216,21 +241,19 @@ var searchSong = (content) => {
         .setDescription(output);
       return [message, data];
     })
-    .catch(console.error);
+    .catch((err) => console.log(err));
 };
 
-var getSongInfo = async(search) => {
+var getSongInfo = async (search) => {
   var info = await ytdl.getBasicInfo(search);
-  console.log(info.videoDetails);
-    var obj = {};
-    obj.name = info.videoDetails.title;
-    obj.author = info.videoDetails.ownerChannelName;
-    obj.length = info.videoDetails.lengthSeconds;
-    obj.url = search;
-    console.log('OBJECT'+obj)
-    return obj;
 
+  var obj = {};
+  obj.name = info.videoDetails.title;
+  obj.author = info.videoDetails.ownerChannelName;
+  obj.length = info.videoDetails.lengthSeconds;
+  obj.url = search;
+
+  return obj;
 };
-
 
 module.exports = { Worker };
