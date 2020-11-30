@@ -1,11 +1,11 @@
-const messageController = require("./controller/message");
 const Discord = require("discord.js");
 const client = new Discord.Client();
 const { Worker } = require("./worker/worker.js");
 
 var buildApp = () => {
-  client.login("NTI5MDYxMTU4OTYzOTA0NTE0.XClEmQ.B_Eakvcb0ivMgBCXgsWhdtG6hf0");
 
+  client.login("NTI5MDYxMTU4OTYzOTA0NTE0.XClEmQ.0tDuprzQ6vyOXYPoF-qWolLUdq0");
+  
   client.on("ready", () => {
     console.log(`Connected to Discord API as: ${client.user.tag}!`);
   });
