@@ -12,10 +12,10 @@
   "dependencies": {
     "@discordjs/opus": "^0.1.0",
     "discord.js": "^12.5.1",
-    "mongodb": "^3.5.5",
-    "rxjs": "^6.6.3",
-    "youtube-sr": "^1.0.3",
-    "ytdl-core": "^4.1.0",
+    "mongodb": "^3.6.4",
+    "rxjs": "^6.6.6",
+    "youtube-sr": "^1.0.7",
+    "ytdl-core": "^4.5.0",
     "ytsr": "^1.0.4"
   }
 }
